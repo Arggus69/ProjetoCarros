@@ -1,17 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using ProjetoCarros.Models;
+using Servico;
+using Servico.model;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 
 namespace ProjetoCarros.Controllers
 {
     public class HomeController : Controller
-    {
-        private static List<Carros> _List = new List<Carros>()
-        {
-            new Carros() { id = 1 , nome = "carro legal", fabricante = "fabricante boa", marca = "marca bonita", modelo = "modelo foda", ano = "2001" },
-            new Carros() { id = 2 , nome = "carro legal 2", fabricante = "fabricante boa 2", marca = "marca bonita 2", modelo = "modelo foda 2", ano = "2002" },
-        };
-
+    { 
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(ILogger<HomeController> logger)
@@ -36,7 +33,26 @@ namespace ProjetoCarros.Controllers
 
         public IActionResult Carros()
         {
-            var viewModel = new CarrosViewModel() { listCarro = _List };
+            var db = new Db();
+
+            var listaTO = db.GetCarros();
+
+            var listaCarro = new List<Carros>();
+            foreach (var carroTO in listaTO)
+            {
+                listaCarro.Add(
+                    new Carros()
+                    {
+                        id = carroTO.Id,
+                        nome = carroTO.Nome,
+                        fabricante = carroTO.Fabricante,
+                        marca = carroTO.Marca,
+                        modelo = carroTO.Modelo,
+                        ano = carroTO.Ano.ToString()
+                    }
+                );
+            }
+            var viewModel = new CarrosViewModel() { listCarro = listaCarro };
 
             return View(viewModel);
         }
@@ -47,7 +63,19 @@ namespace ProjetoCarros.Controllers
 
             if (id != null)
             {
-                carro = _List.Where(w => w.id == id).FirstOrDefault();
+                var db = new Db();
+
+                var carroTO = db.GetCarroById(id.GetValueOrDefault());
+
+                carro = new Carros()
+                {
+                    id = carroTO.Id,
+                    nome = carroTO.Nome,
+                    fabricante = carroTO.Fabricante,
+                    marca = carroTO.Marca,
+                    modelo = carroTO.Modelo,
+                    ano = carroTO.Ano.ToString()
+                };
             }
 
             return View(carro);
@@ -55,28 +83,34 @@ namespace ProjetoCarros.Controllers
 
         public IActionResult PersistirCarro(int? id, string nome, string fabricante, string marca, string modelo, string ano)
         {
+            var db = new Db();
             if (id == null)
             {
-                var novoCarro = new Carros()
+                var novoCarro = new CarroTO()
                 {
-                    id = _List.Count + _List.Last().id,
-                    nome = nome,
-                    fabricante = fabricante,
-                    marca = marca,
-                    modelo = modelo,
-                    ano = ano
+                    Nome = nome,
+                    Fabricante = fabricante,
+                    Marca = marca,
+                    Modelo = modelo,
+                    Ano = int.Parse(ano),
+
                 };
 
-                _List.Add(novoCarro);
+                db.AddCarro(novoCarro);
             }
             else
             {
-                var carro = _List.Where(w => w.id == id).FirstOrDefault();
-                carro.nome = nome;
-                carro.fabricante = fabricante;
-                carro.marca = marca;
-                carro.modelo = modelo;
-                carro.ano = ano;
+                var alterarCarro = new CarroTO()
+                {
+                    Id = id.GetValueOrDefault(),
+                    Nome = nome,
+                    Fabricante = fabricante,
+                    Marca = marca,
+                    Modelo = modelo,
+                    Ano = int.Parse(ano),
+                };
+
+                db.UpdateCarro(alterarCarro);
             }
 
             return RedirectToAction("Carros");
@@ -84,9 +118,9 @@ namespace ProjetoCarros.Controllers
 
         public IActionResult Deletar(int Id)
         {
-            var carro = _List.Where(w => w.id == Id).FirstOrDefault();
+            var db = new Db();
 
-            _List.Remove(carro);
+            db.DeleteCarro(Id);
 
             return RedirectToAction("Carros");
         }
